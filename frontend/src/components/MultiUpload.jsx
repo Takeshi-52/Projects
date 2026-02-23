@@ -143,7 +143,7 @@ export default function MultiUpload({ onUploaded }) {
         <div className="mb-6 flex justify-between items-end">
           <div>
             <h2 className="text-2xl font-bold text-gray-900">อัปโหลดภาพ</h2>
-            <p className="text-gray-500 mt-1">ระบบคัดกรองภาพถ่ายด้วย AI</p>
+            <p className="text-gray-500 mt-1">ระบบคัดกรองภาพถ่ายด้วย</p>
           </div>
           <div className="text-sm font-medium text-indigo-600 bg-indigo-50 px-3 py-1 rounded-full">
             {files.length} / {MAX_FILES} ภาพ
@@ -231,28 +231,16 @@ export default function MultiUpload({ onUploaded }) {
           <div className="mt-8 text-left bg-indigo-50 p-5 rounded-lg border border-indigo-100 shadow-inner">
             <div className="flex justify-between mb-2">
               <span className="text-sm font-bold text-indigo-800 flex items-center">
-                <i className="fa-solid fa-spinner fa-spin mr-2"></i> กำลังอัปโหลดและประมวลผลด้วย AI...
+                <i className="fa-solid fa-spinner fa-spin mr-2"></i> กำลังอัปโหลดและประมวลผล...
               </span>
               <span className="text-sm font-bold text-indigo-800">{progress}%</span>
             </div>
-            <div className="w-full bg-gray-200 rounded-full h-3 mb-4 overflow-hidden">
+            {/* เอา mb-4 ออก เพื่อให้ระยะห่างพอดีเมื่อไม่มีข้อความด้านล่าง */}
+            <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
               <div
                 className="bg-indigo-600 h-3 rounded-full transition-all duration-300 ease-out"
                 style={{ width: `${progress}%` }}
               ></div>
-            </div>
-            
-            {/* Mockup สถานะย่อย เพื่อความสวยงาม */}
-            <div className="space-y-2 text-sm text-gray-600">
-              <p className={`flex items-center ${progress > 10 ? 'text-green-600' : ''}`}>
-                <i className={`fa-solid fa-${progress > 10 ? 'check' : 'circle-notch fa-spin'} w-5`}></i> อัปโหลดไฟล์ภาพ
-              </p>
-              <p className={`flex items-center ${progress > 50 ? 'text-green-600' : progress > 10 ? 'text-indigo-600' : 'text-gray-400'}`}>
-                <i className={`fa-solid fa-${progress > 50 ? 'check' : progress > 10 ? 'spinner fa-spin' : 'minus'} w-5`}></i> วิเคราะห์คุณภาพภาพ (Blur, Light)
-              </p>
-              <p className={`flex items-center ${progress === 100 ? 'text-green-600' : progress > 50 ? 'text-indigo-600' : 'text-gray-400'}`}>
-                 <i className={`fa-solid fa-${progress === 100 ? 'check' : progress > 50 ? 'spinner fa-spin' : 'minus'} w-5`}></i> จำแนกหมวดหมู่ด้วย YOLO
-              </p>
             </div>
           </div>
         )}

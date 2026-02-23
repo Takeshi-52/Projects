@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import MultiUpload from './components/MultiUpload';
-// ถ้าคุณสร้างไฟล์ Dashboard แยกไว้แล้ว ให้เปิดคอมเมนต์บรรทัดล่างนี้ครับ
-// import Dashboard from './pages/Dashboard'; 
+import Dashboard from './pages/Dashboard'; 
 
 function App() {
   // เริ่มต้นมาให้อยู่หน้า 'upload' เสมอ
@@ -49,26 +48,9 @@ function App() {
 
         {/* แสดงหน้า Dashboard เมื่ออัปโหลดเสร็จ */}
         {currentPage === 'dashboard' && (
-          // TODO: แทนที่ตรงนี้ด้วย <Dashboard data={uploadedData} onReset={handleReset} /> ในอนาคต
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center animate-fade-in">
-             <div className="bg-white p-12 rounded-xl shadow-sm">
-                <i className="fa-solid fa-chart-pie text-6xl text-indigo-300 mb-4"></i>
-                <h2 className="text-2xl font-bold text-gray-700">หน้า Dashboard (ผลลัพธ์)</h2>
-                <p className="text-gray-500 mt-2">ระบบเปลี่ยนหน้าอัตโนมัติ! ข้อมูลจาก Backend พร้อมแสดงผลที่นี่</p>
-                
-                {/* ปุ่มสำหรับกลับไปเริ่มใหม่ */}
-                <button 
-                  onClick={handleReset}
-                  className="mt-8 px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition shadow"
-                >
-                  <i className="fa-solid fa-arrow-left mr-2"></i> อัปโหลดภาพชุดใหม่
-                </button>
-             </div>
-          </div>
+          <Dashboard data={uploadedData} onReset={handleReset} />
         )}
-
       </main>
-
     </div>
   );
 }
