@@ -8,7 +8,10 @@ export default function MultiUpload({ onUploaded }) {
   const [error, setError] = useState("");
   const [info, setInfo] = useState("");
   const [progress, setProgress] = useState(0);
-  const [isUploading, setIsUploading] = useState(false); // เพิ่ม State เช็คว่ากำลังอัปโหลดหรือไม่
+  
+  // ใช้ uploadStatus แทน isUploading ตัวเก่า
+  const [uploadStatus, setUploadStatus] = useState("idle"); 
+  
   const inputRef = useRef(null);
   const MAX_FILES = 20;
 
@@ -36,9 +39,8 @@ export default function MultiUpload({ onUploaded }) {
     let toAdd = list;
     let skipped = 0;
 
-    // เช็คจำนวนไฟล์รวมกับของเดิมที่มีอยู่
     const totalFiles = files.length + list.length;
-    
+
     if (totalFiles > MAX_FILES) {
       const allowedCount = MAX_FILES - files.length;
       toAdd = list.slice(0, allowedCount);
@@ -49,7 +51,7 @@ export default function MultiUpload({ onUploaded }) {
       file: f,
       preview: URL.createObjectURL(f),
     }));
-    
+
     setFiles((prev) => [...prev, ...mapped]);
 
     if (skipped > 0) {
@@ -66,79 +68,96 @@ export default function MultiUpload({ onUploaded }) {
 
   function onDrop(e) {
     e.preventDefault();
-    if (!isUploading) addFiles(e.dataTransfer.files);
+    if (uploadStatus === "idle") addFiles(e.dataTransfer.files);
   }
 
   function clearAll() {
     files.forEach((f) => {
       try {
         URL.revokeObjectURL(f.preview);
-      } catch {}
+      } catch { }
     });
     setFiles([]);
     setProgress(0);
     setError("");
     setInfo("");
+    setUploadStatus("idle");
   }
 
   function removeIndex(i) {
     try {
       URL.revokeObjectURL(files[i].preview);
-    } catch {}
+    } catch { }
     setFiles((prev) => prev.filter((_, idx) => idx !== i));
   }
 
-  function uploadAll() {
+  // ฟังก์ชันส่งรูปไปตรวจทีละรูป
+  async function uploadAll() {
     if (files.length === 0) return;
 
     setError("");
+    setInfo("");
+    setUploadStatus("uploading");
     setProgress(0);
-    setIsUploading(true);
 
-    const form = new FormData();
-    files.forEach((f) => form.append("files", f.file));
+    let allProcessedUrls = [];
+    let allResults = { files: [] };
+    let successCount = 0;
 
-    const xhr = new XMLHttpRequest();
-    xhr.open("POST", `${API_BASE}/upload-multi`);
+    // วนลูปส่งทีละรูป (Sequential)
+    for (let i = 0; i < files.length; i++) {
+      const f = files[i];
+      const form = new FormData();
+      form.append("files", f.file); 
 
-    xhr.upload.onprogress = (e) => {
-      if (e.lengthComputable) {
-        setProgress(Math.round((e.loaded / e.total) * 100));
-      }
-    };
+      try {
+        const response = await fetch(`${API_BASE}/upload-multi`, {
+          method: "POST",
+          body: form,
+        });
 
-    xhr.onload = () => {
-      setIsUploading(false);
-      if (xhr.status === 200) {
-        try {
-          const res = JSON.parse(xhr.responseText);
-          // ส่ง URLs หรือข้อมูลผลลัพธ์กลับไปที่ Parent Component (Dashboard)
-          const urls = (res.files || []).map((x) =>
-            x.url.startsWith("http") ? x.url : `${API_BASE}${x.url}`
-          );
-          onUploaded && onUploaded(urls, res); // ส่ง res ไปด้วยเผื่อมีข้อมูลวิเคราะห์
-          clearAll();
-          setInfo("อัปโหลดและตรวจสอบสำเร็จ 🎉");
-        } catch {
-          setError("เกิดข้อผิดพลาดในการอ่านข้อมูลจากเซิร์ฟเวอร์");
+        if (!response.ok) {
+          throw new Error(`รหัส ${response.status}`);
         }
-      } else {
-        setError(`อัปโหลดล้มเหลว: รหัส ${xhr.status}`);
-      }
-    };
 
-    xhr.onerror = () => {
-      setIsUploading(false);
-      setError("เกิดข้อผิดพลาดในการเชื่อมต่อ (Network error)");
-    };
-    
-    xhr.send(form);
+        const res = await response.json();
+
+        // เก็บผลลัพธ์ของรูปนี้รวมไว้
+        if (res.files && res.files.length > 0) {
+          allResults.files.push(res.files[0]);
+
+          const url = res.files[0].url.startsWith("http")
+            ? res.files[0].url
+            : `${API_BASE}${res.files[0].url}`;
+          allProcessedUrls.push(url);
+          successCount++;
+        }
+
+        // อัปเดต % ความคืบหน้าตามจำนวนรูปที่ทำเสร็จ
+        const currentProgress = Math.round(((i + 1) / files.length) * 100);
+        setProgress(currentProgress);
+
+      } catch (err) {
+        console.error("Upload error on file", f.file.name, err);
+      }
+    }
+
+    // เมื่อครบทุกรูปแล้ว
+    setUploadStatus("idle");
+
+    if (successCount > 0) {
+      onUploaded && onUploaded(allProcessedUrls, allResults);
+      clearAll();
+      setInfo(`ตรวจเสร็จสิ้น ${successCount}/${files.length} ภาพ 🎉`);
+    } else {
+      setError("เกิดข้อผิดพลาด ไม่สามารถประมวลผลรูปได้เลย");
+    }
   }
 
   return (
     <div className="max-w-4xl mx-auto py-8 px-4 sm:px-6 lg:px-8 animate-fade-in">
       <div className="bg-white rounded-xl shadow-lg p-8">
-        
+
         {/* HEADER */}
         <div className="mb-6 flex justify-between items-end">
           <div>
@@ -166,19 +185,19 @@ export default function MultiUpload({ onUploaded }) {
         <div
           onDrop={onDrop}
           onDragOver={(e) => e.preventDefault()}
-          onClick={() => !isUploading && inputRef.current?.click()}
+          onClick={() => uploadStatus === "idle" && inputRef.current?.click()}
           className={`border-2 border-dashed rounded-xl p-12 transition-all text-center ${
-            isUploading 
-              ? "border-gray-300 bg-gray-50 cursor-not-allowed opacity-60" 
+            uploadStatus !== "idle"
+              ? "border-gray-300 bg-gray-50 cursor-not-allowed opacity-60"
               : "border-indigo-300 bg-indigo-50 hover:bg-indigo-100 cursor-pointer group"
-          }`}
+            }`}
         >
           <div className="flex flex-col items-center justify-center pointer-events-none">
-            <i className={`fa-solid fa-cloud-arrow-up text-5xl mb-4 transition-transform ${isUploading ? 'text-gray-400' : 'text-indigo-500 group-hover:scale-110'}`}></i>
-            <p className={`text-lg font-medium ${isUploading ? 'text-gray-500' : 'text-indigo-900'}`}>
+            <i className={`fa-solid fa-cloud-arrow-up text-5xl mb-4 transition-transform ${uploadStatus !== "idle" ? 'text-gray-400' : 'text-indigo-500 group-hover:scale-110'}`}></i>
+            <p className={`text-lg font-medium ${uploadStatus !== "idle" ? 'text-gray-500' : 'text-indigo-900'}`}>
               ลากไฟล์มาวางที่นี่ หรือ คลิกเพื่อเลือกไฟล์
             </p>
-            <p className={`text-sm mt-2 ${isUploading ? 'text-gray-400' : 'text-indigo-600'}`}>
+            <p className={`text-sm mt-2 ${uploadStatus !== "idle" ? 'text-gray-400' : 'text-indigo-600'}`}>
               รองรับไฟล์ .JPG, .PNG (สูงสุด {MAX_FILES} ภาพ/ครั้ง)
             </p>
           </div>
@@ -189,7 +208,7 @@ export default function MultiUpload({ onUploaded }) {
             multiple
             onChange={onFileChange}
             className="hidden"
-            disabled={isUploading}
+            disabled={uploadStatus !== "idle"}
           />
         </div>
 
@@ -198,7 +217,7 @@ export default function MultiUpload({ onUploaded }) {
           <div className="mt-8">
             <div className="flex justify-between items-center mb-4">
               <h3 className="font-bold text-gray-700">ภาพที่เลือก ({files.length})</h3>
-              {!isUploading && (
+              {uploadStatus === "idle" && (
                 <button onClick={clearAll} className="text-red-500 hover:text-red-700 text-sm font-medium transition">
                   <i className="fa-solid fa-trash-can mr-1"></i> ล้างทั้งหมด
                 </button>
@@ -210,9 +229,9 @@ export default function MultiUpload({ onUploaded }) {
                   <img
                     src={f.preview}
                     alt="preview"
-                    className="w-full h-full object-cover transform group-hover:scale-110 transition duration-300"
+                    className="w-full h-full object-cover group-hover:brightness-75 transition duration-200"
                   />
-                  {!isUploading && (
+                  {uploadStatus === "idle" && (
                     <button
                       onClick={() => removeIndex(i)}
                       className="absolute top-2 right-2 bg-red-500 text-white w-7 h-7 rounded-full opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center hover:bg-red-600 shadow-md"
@@ -226,19 +245,21 @@ export default function MultiUpload({ onUploaded }) {
           </div>
         )}
 
-        {/* PROGRESS BAR (แสดงเมื่อกำลังอัปโหลด) */}
-        {isUploading && (
-          <div className="mt-8 text-left bg-indigo-50 p-5 rounded-lg border border-indigo-100 shadow-inner">
-            <div className="flex justify-between mb-2">
-              <span className="text-sm font-bold text-indigo-800 flex items-center">
-                <i className="fa-solid fa-spinner fa-spin mr-2"></i> กำลังอัปโหลดและประมวลผล...
+        {/* PROGRESS BAR (แสดงตามจำนวนรูป) */}
+        {uploadStatus === "uploading" && (
+          <div className="mt-8 text-left bg-indigo-50 p-6 rounded-xl border border-indigo-100 shadow-inner">
+            <div className="flex justify-between mb-3">
+              <span className="font-bold text-indigo-800 flex items-center">
+                <i className="fa-solid fa-microchip animate-pulse mr-3 text-lg text-purple-600"></i>
+                กำลังประมวลผลภาพทีละรูป...
               </span>
-              <span className="text-sm font-bold text-indigo-800">{progress}%</span>
+              <span className="font-bold text-indigo-800">
+                {Math.round((progress / 100) * files.length)} / {files.length} ภาพ
+              </span>
             </div>
-            {/* เอา mb-4 ออก เพื่อให้ระยะห่างพอดีเมื่อไม่มีข้อความด้านล่าง */}
-            <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
+            <div className="w-full bg-gray-200 rounded-full h-4 overflow-hidden shadow-inner">
               <div
-                className="bg-indigo-600 h-3 rounded-full transition-all duration-300 ease-out"
+                className="bg-gradient-to-r from-indigo-500 to-purple-600 h-4 rounded-full transition-all duration-300 ease-out"
                 style={{ width: `${progress}%` }}
               ></div>
             </div>
@@ -249,16 +270,16 @@ export default function MultiUpload({ onUploaded }) {
         <div className="mt-8">
           <button
             onClick={uploadAll}
-            disabled={files.length === 0 || isUploading}
+            disabled={files.length === 0 || uploadStatus !== "idle"}
             className={`w-full font-bold py-3 px-4 rounded-lg transition-all flex justify-center items-center text-lg ${
-              files.length === 0
+                files.length === 0
                 ? "bg-gray-200 text-gray-400 cursor-not-allowed"
-                : isUploading
-                ? "bg-indigo-400 text-white cursor-wait"
-                : "bg-indigo-600 text-white hover:bg-indigo-700 shadow-md hover:shadow-lg"
-            }`}
+                : uploadStatus !== "idle"
+                  ? "bg-indigo-400 text-white cursor-wait"
+                  : "bg-indigo-600 text-white hover:bg-indigo-700 shadow-md hover:shadow-lg"
+              }`}
           >
-            {isUploading ? (
+            {uploadStatus !== "idle" ? (
               <>
                 <i className="fa-solid fa-circle-notch fa-spin mr-2"></i> กำลังประมวลผล...
               </>

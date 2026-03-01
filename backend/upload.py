@@ -59,7 +59,7 @@ async def upload_multi(files: List[UploadFile] = File(...)):
     """
     อัปโหลดหลายรูป + ย่อขนาด + ตรวจสอบคุณภาพ
     """
-    clear_old_files()
+    #clear_old_files()
 
     if len(files) > 20:
         raise HTTPException(status_code=400, detail="Max 20 images allowed")
@@ -180,6 +180,11 @@ async def get_img_fail(filename: str):
         raise HTTPException(404)
     return FileResponse(path)
 
+@router.post("/clear-images")
+async def api_clear_images():
+    """API สำหรับเคลียร์รูปเก่าในโฟลเดอร์ทิ้ง (เรียกใช้ 1 ครั้งก่อนเริ่มอัปโหลดชุดใหม่)"""
+    clear_old_files()
+    return {"message": "เคลียร์ไฟล์เก่าเรียบร้อย"}
 
 # --- Endpoint สำหรับจำแนกภาพ (Classification) ---
 @router.post("/classify-passed")
@@ -199,29 +204,31 @@ async def classify_passed_images():
 
     for filename in os.listdir(PHOTO_PASS_DIR):
         file_path = os.path.join(PHOTO_PASS_DIR, filename)
+
+        clean_file_path = os.path.join(RESIZED_DIR, filename)
         
         if os.path.isfile(file_path) and filename.lower().endswith(('.png', '.jpg', '.jpeg')):
             
             # --- ด่านที่ 1: วิทยากร ---
-            is_speaker, reason, img = analyze_speaker_pattern(file_path)
+            is_speaker, reason, img = analyze_speaker_pattern(clean_file_path)
             if is_speaker:
                 category, final_reason = "วิทยากร", reason
                 stats["speaker"] += 1
             else:
                 # --- ด่านที่ 2: รูปถ่ายหมู่ (>= 10 คน) ---
-                is_group, reason, img = analyze_group_pattern(file_path)
+                is_group, reason, img = analyze_group_pattern(clean_file_path)
                 if is_group:
                     category, final_reason = "รูปหมู่", reason
                     stats["group"] += 1
                 else:
                     # --- ด่านที่ 3: Backdrop (1-5 คน) ---
-                    is_bd, reason, img = analyze_backdrop_pattern(file_path)
+                    is_bd, reason, img = analyze_backdrop_pattern(clean_file_path)
                     if is_bd:
                         category, final_reason = "Backdrop", reason
                         stats["backdrop"] += 1
                     else:
                         # --- ด่านที่ 4: บรรยากาศ (แคนดิด) ---
-                        is_atmos, reason, img = analyze_atmosphere_pattern(file_path)
+                        is_atmos, reason, img = analyze_atmosphere_pattern(clean_file_path)
                         if is_atmos:
                             category, final_reason = "บรรยากาศ", reason
                             stats["atmos"] += 1

@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import MultiUpload from './components/MultiUpload';
 import Dashboard from './pages/Dashboard'; 
 
+const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:8000";
+
 function App() {
   // เริ่มต้นมาให้อยู่หน้า 'upload' เสมอ
   const [currentPage, setCurrentPage] = useState('upload');
@@ -17,7 +19,16 @@ function App() {
   };
 
   // ฟังก์ชันสำหรับกลับมาหน้าอัปโหลดใหม่
-  const handleReset = () => {
+  const handleReset = async () => {
+    try {
+      // 1. สั่ง Backend ให้กวาดลบไฟล์รูปภาพเก่าทิ้งทั้งหมด
+      await fetch(`${API_BASE}/clear-images`, { method: "POST" });
+      console.log("ลียร์รูปภาพเก่าที่เซิร์ฟเวอร์สำเร็จ");
+    } catch (err) {
+      console.error("ไม่สามารถเคลียร์ไฟล์เก่าที่เซิร์ฟเวอร์ได้", err);
+    }
+
+    // 2. เคลียร์ข้อมูลบนหน้าเว็บ และสลับกลับไปหน้า Upload
     setUploadedData(null);
     setCurrentPage('upload');
   }

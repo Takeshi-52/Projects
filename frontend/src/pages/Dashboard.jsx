@@ -156,7 +156,7 @@ export default function Dashboard({ data, onReset }) {
                     className="bg-emerald-500 text-white px-5 py-2.5 rounded-xl hover:bg-emerald-600 font-medium transition shadow-sm disabled:opacity-50 flex items-center"
                 >
                     {isClassifying ? (
-                        <span className="animate-pulse">⏳ กำลังจำแนกภาพ...</span>
+                        <span className="animate-pulse">กำลังจำแนกภาพ...</span>
                     ) : (
                         <span>จำแนกภาพ</span>
                     )}
@@ -190,7 +190,7 @@ export default function Dashboard({ data, onReset }) {
                         </div>
                     ))
                 ) : (
-                    <div className="h-full flex items-center justify-center text-gray-400 py-10">ไม่พบข้อผิดพลาดเลย 🎉</div>
+                    <div className="h-full flex items-center justify-center text-gray-400 py-10">ไม่พบข้อผิดพลาดเลย</div>
                 )}
             </div>
         </div>
@@ -357,7 +357,7 @@ export default function Dashboard({ data, onReset }) {
                         <div className="bg-gray-50 p-4 rounded-xl border">
                             <p className="text-xs text-gray-500 uppercase tracking-wider mb-2">ผลการประมวลผลพื้นฐาน</p>
                             <p className="text-sm font-medium text-gray-800 mb-1">
-                                {selectedImage.status === 'Passed' ? '✔ ตรวจสอบคุณภาพผ่าน' : `✘ ${getReasonTag(selectedImage.defect_reason).text}`}
+                                {selectedImage.status === 'Passed' ? 'ตรวจสอบคุณภาพผ่าน' : `ตรวจสอบคุณภาพไม่ผ่าน ${getReasonTag(selectedImage.defect_reason).text}`}
                             </p>
                             {selectedImage.status === 'Rejected' && (
                                 <p className="text-xs text-red-600 mt-2">{selectedImage.defect_reason}</p>
